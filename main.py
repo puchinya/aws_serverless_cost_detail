@@ -10,6 +10,7 @@ import datetime
 from dataclasses import dataclass
 from typing import *
 
+
 @dataclass
 class LambdaMetrics:
     time: datetime.datetime
@@ -84,7 +85,7 @@ def get_dynamodb_table_info_list(session: boto3.Session) -> List[DynamoDbTableIn
     return ret
 
 
-def get_lambda_cw_metrics(cw_client, start_time: datetime.datetime, end_time: datetime.datetime, period: int = 3600)\
+def get_lambda_cw_metrics(cw_client, start_time: datetime.datetime, end_time: datetime.datetime, period: int = 3600) \
         -> Dict[str, List[LambdaMetrics]]:
     list_response = cw_client.list_metrics(
         Namespace='AWS/Lambda',
@@ -106,7 +107,7 @@ def get_lambda_cw_metrics(cw_client, start_time: datetime.datetime, end_time: da
             StartTime=start_time,
             EndTime=end_time,
             Dimensions=[
-                { 'Name': 'FunctionName', 'Value': func_name }
+                {'Name': 'FunctionName', 'Value': func_name}
             ],
             Period=period,
             Statistics=['Sum']
@@ -133,7 +134,7 @@ def get_lambda_cw_metrics(cw_client, start_time: datetime.datetime, end_time: da
     return ret
 
 
-def get_dynamodb_cw_metrics(cw_client, start_time: datetime.datetime, end_time: datetime.datetime, period: int = 3600)\
+def get_dynamodb_cw_metrics(cw_client, start_time: datetime.datetime, end_time: datetime.datetime, period: int = 3600) \
         -> Dict[str, List[DynamoDbTableMetrics]]:
     list_response = cw_client.list_metrics(
         Namespace='AWS/DynamoDB',
@@ -226,11 +227,14 @@ class LambdaCostInfo:
     cost_per_gb_x86: decimal.Decimal
     cost_per_gb_arm: decimal.Decimal
 
+
 LAMBDA_COST_INFO_PER_REGION = {
-    'ap-northeast-1': LambdaCostInfo(decimal.Decimal('0.20'), decimal.Decimal('0.0000166667'), decimal.Decimal('0.0000133334'))
+    'ap-northeast-1': LambdaCostInfo(decimal.Decimal('0.20'), decimal.Decimal('0.0000166667'),
+                                     decimal.Decimal('0.0000133334'))
 }
 
-@dataclass()
+
+@dataclass
 class LambdaCostDetail:
     timestamp: datetime
     period: int
@@ -241,7 +245,6 @@ class LambdaCostDetail:
 
 
 def get_lambda_cost(session: boto3.Session, start_time: datetime.datetime, end_time: datetime.datetime, period: int):
-
     lambda_function_list = get_lambda_info_list(session)
 
     cw_client = session.client('cloudwatch')
@@ -253,10 +256,12 @@ def get_lambda_cost(session: boto3.Session, start_time: datetime.datetime, end_t
         if cw_metrics:
             for m in cw_metrics:
                 cost_info = LAMBDA_COST_INFO_PER_REGION['ap-northeast-1']
-                cost = cost_info.cost_per_1m_invocations * m.invocations / decimal.Decimal(1000000)
-                + cost_info.cost_per_gb_x86 * func_info.memory_size * decimal.Decimal(m.avg_duration) * m.invocations / 1024
+                cost = cost_info.cost_per_1m_invocations * m.invocations / decimal.Decimal(1000000) + \
+                       cost_info.cost_per_gb_x86 * func_info.memory_size * decimal.Decimal(m.avg_duration) * \
+                       m.invocations / 1024
 
-                cost_list.append(LambdaCostDetail(m.time, period, cost, func_info.memory_size, m.invocations, m.avg_duration))
+                cost_list.append(
+                    LambdaCostDetail(m.time, period, cost, func_info.memory_size, m.invocations, m.avg_duration))
         ret[func_info.function_name] = cost_list
     return ret
 
@@ -267,6 +272,7 @@ class DynamoDBCostInfo:
     cost_per_ondemand_rru_per_1m: decimal.Decimal
     cost_per_provisioned_wcu: decimal.Decimal
     cost_per_provisioned_rcu: decimal.Decimal
+
 
 DYNAMO_DB_COST_INFO_PER_REGION = {
     'ap-northeast-1': DynamoDBCostInfo(decimal.Decimal('1.4269'), decimal.Decimal('0.285'),
@@ -284,7 +290,6 @@ class DynamoDbTableCostDetail:
 
 
 def get_dynamodb_cost(session: boto3.Session, start_time: datetime.datetime, end_time: datetime.datetime, period: int):
-
     dynamodb_table_list = get_dynamodb_table_info_list(session)
 
     cw_client = session.client('cloudwatch')
@@ -297,8 +302,10 @@ def get_dynamodb_cost(session: boto3.Session, start_time: datetime.datetime, end
             for m in cw_metrics:
                 cost_info = DYNAMO_DB_COST_INFO_PER_REGION['ap-northeast-1']
                 if m.avg_prov_rcu == 0 and m.avg_prov_wcu == 0:
-                    w_cost = cost_info.cost_per_ondemand_wru_per_1m * decimal.Decimal(m.sum_consumed_wcu) * period / 1000000
-                    r_cost = cost_info.cost_per_ondemand_rru_per_1m * decimal.Decimal(m.sum_consumed_rcu) * period / 1000000
+                    w_cost = cost_info.cost_per_ondemand_wru_per_1m * decimal.Decimal(
+                        m.sum_consumed_wcu) * period / 1000000
+                    r_cost = cost_info.cost_per_ondemand_rru_per_1m * decimal.Decimal(
+                        m.sum_consumed_rcu) * period / 1000000
                 else:
                     w_cost = cost_info.cost_per_provisioned_wcu * decimal.Decimal(m.avg_prov_wcu) * period / 3600
                     r_cost = cost_info.cost_per_provisioned_rcu * decimal.Decimal(m.avg_prov_rcu) * period / 3600
@@ -310,7 +317,6 @@ def get_dynamodb_cost(session: boto3.Session, start_time: datetime.datetime, end
 
 def export_lambda_cost_to_csv(filename: str, session: boto3.Session,
                               start_time: datetime.datetime, end_time: datetime.datetime, period: int) -> None:
-
     lambda_cost = get_lambda_cost(session, start_time, end_time, period)
 
     headers = ['function_name', 'timestamp', 'period', 'memory_size', 'invocations', 'avg_duration', 'cost']
@@ -327,8 +333,7 @@ def export_lambda_cost_to_csv(filename: str, session: boto3.Session,
 
 
 def export_dynamodb_cost_to_csv(filename: str, session: boto3.Session,
-                              start_time: datetime.datetime, end_time: datetime.datetime, period: int) -> None:
-
+                                start_time: datetime.datetime, end_time: datetime.datetime, period: int) -> None:
     dynamodb_cost = get_dynamodb_cost(session, start_time, end_time, period)
 
     headers = ['table_name', 'timestamp', 'period', 'w_cost', 'r_cost', 'cost']
@@ -361,7 +366,7 @@ def main(args: List[str]) -> int:
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    #argv = sys.argv
+    # argv = sys.argv
     s_end_time = datetime.datetime.utcnow()
     s_start_time = s_end_time - datetime.timedelta(days=30)
     s_period = 60 * 60 * 24
